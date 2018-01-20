@@ -12,7 +12,7 @@ export class GraphVisualizer {
         return "dot-";
     }
 
-    static GraphvizDefaults(){
+    static get GraphvizDefaults(){
         //defaults taken from https://www.graphviz.org/doc/info/attrs.html
         var atr =  new Object();
         atr.dpi = 72.0;
@@ -22,7 +22,7 @@ export class GraphVisualizer {
         atr.fontsize = 14;
         atr.shape = "ellipse";
         atr.color = "black"
-        atr.label = undefined;
+        atr.label = "\\N";
         atr.class = undefined;
         atr.id = undefined;
         atr.fillcolor = "lightgrey";
@@ -69,9 +69,8 @@ export class GraphVisualizer {
         return data;
     }
 
-    static ParseAttributes(node) {
-        var atr = GraphVisualizer.GraphvizDefaults();
-        node.attr_list.forEach(element => {
+    static ParseAttributes(attr_list, atr) {
+        attr_list.forEach(element => {
             switch(element.id) {
                 case "width":
                     atr.width = parseFloat(element.eq);
@@ -92,7 +91,8 @@ export class GraphVisualizer {
         if (nodes.includes(node.node_id.id)) {
             return;
         }
-        var atr = GraphVisualizer.ParseAttributes(node);
+        var defaults = GraphVisualizer.GraphvizDefaults;
+        var atr = GraphVisualizer.ParseAttributes(node.attr_list, context.nodeDefaults);
         var group = context.container.group().id(atr.id != undefined? atr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
         var shape = GraphVisualizer.CreateShape(group, atr);
         shape.addClass('dot-shape');
@@ -101,22 +101,23 @@ export class GraphVisualizer {
         }
         var pos = GraphVisualizer.ParseNodePosition(atr.pos);
         switch(atr.style) {
-            case "filled":
-                shape.fill(atr.fillcolor);
+            case "filled": 
+                var fillColor = atr.fillcolor || atr.color  || GraphVisualizer.GraphvizDefaults.fillcolor;
+                shape.fill(fillColor);
                 break;
             case "solid":
                 shape.fill("#ffffff");
                 break;
-            }
-        shape.stroke({ width: 1 })
-        var text = group.text(atr.label != undefined ? atr.label : node.node_id.id);
-        var yOffset = atr.fontsize;
+        }
+        shape.stroke({ width: 1, color: atr.color });
+        var text = group.text(atr.label != "\\N" ? atr.label : node.node_id.id);
+        var fontSize = atr.fontsize || defaults.fontsize;
         text.font({
             anchor: 'middle',
-            size: atr.fontsize,
-            family: atr.fontname,
-            fill: atr.fontcolor });
-        text.attr({ x: pos.X, y: pos.Y - yOffset});
+            size: fontSize,
+            family: atr.fontname || defaults.fontname,
+            fill: atr.fontcolor || defaults.fontcolor });
+        text.attr({ x: pos.X, y: pos.Y - fontSize});
         group.addClass('dot-node');
         nodes.push(node.node_id.id);
     }
@@ -138,7 +139,7 @@ export class GraphVisualizer {
     }
 
     static ParseEdge(context, edge) {
-        var atr = GraphVisualizer.ParseAttributes(edge);
+        var atr = GraphVisualizer.ParseAttributes(edge.attr_list, context.edgeDefaults);
         var data = GraphVisualizer.ParseEdgePosition(atr.pos);
         var group = context.container.group().id(atr.id != undefined ? atr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
@@ -150,20 +151,40 @@ export class GraphVisualizer {
     }
 
     static ParseGraphAttributes(context, attribute) {
+        var attributes = new Object();
         switch(attribute.target) {
             case "graph":
-                GraphVisualizer.SetupGraphAttributes(context, attribute.attr_list);
-            break;
+                attributes = context.graphDefaults;
+                break;
+            case "node":
+                attributes = context.nodeDefaults;
+                break;
+            case "edge":
+                attributes = context.edgeDefaults;
+                break;
+        }
+        GraphVisualizer.ParseAttributes(attribute.attr_list, attributes);
+        if (context.isRoot && attribute.target == "graph") {
+            GraphVisualizer.SetupDocumentBounds(context, attributes);
         }
     }
 
-    static SetupGraphAttributes(context, attributes) {
+    static SetupDocumentBounds(context, attributes) {
+        var offset = 4;
+        var bb = context.graphDefaults.bb.split(',');
+        var x = parseFloat(bb[2]);
+        var y = parseFloat(bb[3]);
+        context.doc.size(x + offset, y + offset);
+        context.container.move(offset / 2, y + offset / 2);
+    }
+
+    
+    static SetupNodeAttributes(context, attributes) {
         var offset = 4;
         attributes.forEach(element => {
             switch(element.id) {
                 case "bb":
                     if (context.isRoot) {
-                        debugger;
                         var bb = element.eq.split(',');
                         var x = parseFloat(bb[2]);
                         var y = parseFloat(bb[3]);
@@ -176,10 +197,13 @@ export class GraphVisualizer {
     }
     
     static CreateShape (container, atributes) {
-        var width = atributes.width * atributes.dpi;
-        var height = atributes.height * atributes.dpi;
+        var defaults = GraphVisualizer.GraphvizDefaults;
+        var width = atributes.width * defaults.dpi;
+        var height = atributes.height * defaults.dpi;
         var pos = GraphVisualizer.ParseNodePosition(atributes.pos);
-        switch(atributes.shape) {
+        var shape = atributes.shape || defaults.shape;
+        var color = atributes.color || defaults.color;
+        switch(shape) {
             case "ellipse":
                 return container.ellipse().move(pos.X, pos.Y).radius(width / 2, height / 2);
             case "circle":
@@ -203,10 +227,10 @@ export class GraphVisualizer {
                 var offsetv = offset * width / height;
                 var deltah = width  / 2 * (offset * 2 / height);
                 var deltav = height / 2 * (offsetv * 2 / width);
-                container.line(a.x + deltah, a.y + offset, a.x + deltah, a.y - offset).stroke({ width: 1 });
-                container.line(b.x - offsetv, b.y - deltav, b.x  + offsetv, b.y - deltav).stroke({ width: 1 });
-                container.line(c.x - deltah, c.y + offset, c.x - deltah, c.y - offset).stroke({ width: 1 });
-                container.line(d.x - offsetv, d.y + deltav, d.x  + offsetv, d.y + deltav).stroke({ width: 1 });
+                container.line(a.x + deltah, a.y + offset, a.x + deltah, a.y - offset).stroke({ width: 1, color: color });
+                container.line(b.x - offsetv, b.y - deltav, b.x  + offsetv, b.y - deltav).stroke({ width: 1, color: color });
+                container.line(c.x - deltah, c.y + offset, c.x - deltah, c.y - offset).stroke({ width: 1, color: color });
+                container.line(d.x - offsetv, d.y + deltav, d.x  + offsetv, d.y + deltav).stroke({ width: 1, color: color });
                 return shape;
             case "Msquare":
                 var offset = 15;
@@ -216,10 +240,10 @@ export class GraphVisualizer {
                 var d = new Victor(pos.X - width / 2, pos.Y + height / 2);
                 var shape =  container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
                 var delta = offset / 2;
-                container.line(a.x + delta, a.y, a.x, a.y + delta).stroke({ width: 1 });
-                container.line(b.x - delta, b.y, b.x, b.y + delta).stroke({ width: 1 });
-                container.line(c.x, c.y - delta, c.x - delta, c.y).stroke({ width: 1 });
-                container.line(d.x, d.y - delta, d.x + delta, d.y).stroke({ width: 1 });
+                container.line(a.x + delta, a.y, a.x, a.y + delta).stroke({ width: 1, color: color });
+                container.line(b.x - delta, b.y, b.x, b.y + delta).stroke({ width: 1, color: color });
+                container.line(c.x, c.y - delta, c.x - delta, c.y).stroke({ width: 1, color: color });
+                container.line(d.x, d.y - delta, d.x + delta, d.y).stroke({ width: 1, color: color });
             return shape;
         }
     }
@@ -230,24 +254,35 @@ export class GraphVisualizer {
         context.isRoot = true;
         context.doc = doc;
         context.container = doc.group();
-        GraphVisualizer.ParseGraph(context, GraphVisualizer.parseGraph(data)[0], new Array(),);
+        context.nodeDefaults = new Object();
+        context.graphDefaults = new Object();
+        context.edgeDefaults = new Object();
+        GraphVisualizer.ParseGraph(context, GraphVisualizer.parseGraph(data)[0], new Array());
         return doc;
     }
 
+    static CopyContext(context) {
+        var newContext = Object.assign({}, context);
+        newContext.nodeDefaults = Object.assign({}, context.nodeDefaults);
+        newContext.edgeDefaults = Object.assign({}, context.edgeDefaults);
+        newContext.graphDefaults = Object.assign({}, context.graphDefaults);
+        return newContext;
+    }
+
     static ParseGraph(context, element, nodes) {
+        var newContext = GraphVisualizer.CopyContext(context);
         element.children.forEach(element => {
             switch(element.type) {
                 case "node_stmt":
-                    GraphVisualizer.ParseNode(context, element, nodes);
+                    GraphVisualizer.ParseNode(newContext, element, nodes);
                 break;
                 case "edge_stmt":
-                    GraphVisualizer.ParseEdge(context, element);
+                    GraphVisualizer.ParseEdge(newContext, element);
                 break;
                 case "attr_stmt" :
-                   GraphVisualizer.ParseGraphAttributes(context, element);
+                   GraphVisualizer.ParseGraphAttributes(newContext, element);
                 break;
                 case "subgraph" :
-                    var newContext = Object.assign({}, context);
                     newContext.container = context.container.group();
                     newContext.isRoot = false;
                     GraphVisualizer.ParseGraph(newContext, element, nodes);
