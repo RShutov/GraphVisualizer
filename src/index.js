@@ -340,12 +340,12 @@ export class GraphVisualizer {
         var newContext = GraphVisualizer.CopyContext(context);
         element.children.filter(e => e.type == "attr_stmt").forEach(e => GraphVisualizer.ParseGraphAttributes(newContext, e));
         GraphVisualizer.DecorateGraph(element, newContext);
-        element.children.filter(e => e.type == "edge_stmt").forEach(e => GraphVisualizer.ParseEdge(newContext, e));
         element.children.filter(e => e.type == "subgraph").forEach(e => {
             newContext.container = context.container.group();
             newContext.isRoot = false;
             GraphVisualizer.ParseGraph(newContext, e, nodes);
         });
+        element.children.filter(e => e.type == "edge_stmt").forEach(e => GraphVisualizer.ParseEdge(newContext, e));
         element.children.filter(e => e.type == "node_stmt").forEach(e => GraphVisualizer.ParseNode(newContext, e, nodes));
     }
 }
