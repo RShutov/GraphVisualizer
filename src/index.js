@@ -87,13 +87,13 @@ export class GraphVisualizer {
         return atr;
     }
 
-    static ParseNode(doc, node, nodes) {
+    static ParseNode(context, node, nodes) {
         //check if the node already exists
         if (nodes.includes(node.node_id.id)) {
             return;
         }
         var atr = GraphVisualizer.ParseAttributes(node);
-        var group = doc.group().id(atr.id != undefined? atr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
+        var group = context.container.group().id(atr.id != undefined? atr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
         var shape = GraphVisualizer.CreateShape(group, atr);
         shape.addClass('dot-shape');
         if(atr.class != undefined) {
@@ -137,10 +137,10 @@ export class GraphVisualizer {
         doc.polygon(`${left.x},${left.y} ${right.x},${right.y} ${end.x},${end.y} ${left.x},${left.y}`);
     }
 
-    static ParseEdge(doc, edge) {
+    static ParseEdge(context, edge) {
         var atr = GraphVisualizer.ParseAttributes(edge);
         var data = GraphVisualizer.ParseEdgePosition(atr.pos);
-        var group = doc.group().id(atr.id != undefined ? atr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
+        var group = context.container.group().id(atr.id != undefined ? atr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
         if(atr.class != undefined) {
             group.addClass(atr.class);
@@ -149,25 +149,26 @@ export class GraphVisualizer {
         GraphVisualizer.AddTip(group, data);
     }
 
-    static ParseGraphAttributes(doc, container, attribute, isRoot) {
+    static ParseGraphAttributes(context, attribute) {
         switch(attribute.target) {
             case "graph":
-                GraphVisualizer.SetupGraphAttributes(doc, container, attribute.attr_list, isRoot);
+                GraphVisualizer.SetupGraphAttributes(context, attribute.attr_list);
             break;
         }
     }
 
-    static SetupGraphAttributes(doc, container,  attributes, isRoot) {
+    static SetupGraphAttributes(context, attributes) {
         var offset = 4;
         attributes.forEach(element => {
             switch(element.id) {
                 case "bb":
-                    if (isRoot) {
+                    if (context.isRoot) {
+                        debugger;
                         var bb = element.eq.split(',');
                         var x = parseFloat(bb[2]);
                         var y = parseFloat(bb[3]);
-                        doc.size(x + offset, y + offset);
-                        container.move(offset / 2, y + offset / 2);
+                        context.doc.size(x + offset, y + offset);
+                        context.container.move(offset / 2, y + offset / 2);
                     }
                 break;
             }
@@ -225,24 +226,31 @@ export class GraphVisualizer {
 
     static Svg(id, data) {
         var doc = new SVG(id)
-        GraphVisualizer.ParseGraph(doc, doc.group(), GraphVisualizer.parseGraph(data)[0], new Array(), true);
+        var context = new Object();
+        context.isRoot = true;
+        context.doc = doc;
+        context.container = doc.group();
+        GraphVisualizer.ParseGraph(context, GraphVisualizer.parseGraph(data)[0], new Array(),);
         return doc;
     }
 
-    static ParseGraph(doc, container, element, nodes, isRoot) {
+    static ParseGraph(context, element, nodes) {
         element.children.forEach(element => {
             switch(element.type) {
                 case "node_stmt":
-                    GraphVisualizer.ParseNode(container, element, nodes);
+                    GraphVisualizer.ParseNode(context, element, nodes);
                 break;
                 case "edge_stmt":
-                    GraphVisualizer.ParseEdge(container, element);
+                    GraphVisualizer.ParseEdge(context, element);
                 break;
                 case "attr_stmt" :
-                   GraphVisualizer.ParseGraphAttributes(doc, container, element, isRoot);
+                   GraphVisualizer.ParseGraphAttributes(context, element);
                 break;
                 case "subgraph" :
-                    GraphVisualizer.ParseGraph(doc, container.group(), element, nodes, false);
+                    var newContext = Object.assign({}, context);
+                    newContext.container = context.container.group();
+                    newContext.isRoot = false;
+                    GraphVisualizer.ParseGraph(newContext, element, nodes);
                 break;
             }
         });
