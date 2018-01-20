@@ -278,28 +278,18 @@ export class GraphVisualizer {
         }
     }
 
-    static ParseGraph(context, element, nodes) {
-        /*
-         * Bug: dotparser creates two instances for single cluster – with 
-         * empty children and attributes but with filled id and vice versa
-        */
-        GraphVisualizer.FixSubgraphs(element);
-        var newContext = GraphVisualizer.CopyContext(context);
+    static DecorateGraph(element, context)
+    {
         var defaults = GraphVisualizer.GraphvizDefaults;
-        element.children.forEach(element => {
-            if (element.type == "attr_stmt") {
-                GraphVisualizer.ParseGraphAttributes(newContext, element);
-            }
-        });
+        var atr = context.graphDefaults;
+        var bb = context.graphDefaults.bb.split(',');
+        var x0 = parseFloat(bb[0]);
+        var y0 = parseFloat(bb[1]);
+        var x1 = parseFloat(bb[2]);
+        var y1 = parseFloat(bb[3]);
         if (element.id != undefined && element.id.startsWith("cluster")) {
-            var atr = newContext.graphDefaults;
             var style = atr.style || defaults.style;
-            var bb = newContext.graphDefaults.bb.split(',');
-            var x0 = parseFloat(bb[0]);
-            var y0 = parseFloat(bb[1]);
-            var x1 = parseFloat(bb[2]);
-            var y1 = parseFloat(bb[3]);
-            var shape = newContext.container.rect().attr({
+            var shape = context.container.rect().attr({
                 x: x0,
                 y: -y1,
                 width: x1 - x0,
@@ -309,6 +299,32 @@ export class GraphVisualizer {
             shape.fill(fillColor);
             shape.stroke({ width: 1, color: atr.color || defaults.color });
         }
+        if (atr.label != undefined) {
+            var fontSize = atr.lheight * defaults.dpi || defaults.fontsize;
+            var pos = (atr.lp || `${x0},${-y1}`).split(',').map(e => parseFloat(e));
+            var text = context.container.text(atr.label);
+            text.font({
+                anchor: 'middle',
+                size: fontSize,
+                family: atr.fontname || defaults.fontname,
+                fill: atr.fontcolor || defaults.fontcolor });
+            text.attr({ x: pos[0], y: -pos[1] - fontSize});
+        }
+    }
+
+    static ParseGraph(context, element, nodes) {
+        /*
+         * Bug: dotparser creates two instances for single cluster – with 
+         * empty children and attributes but with filled id and vice versa
+        */
+        GraphVisualizer.FixSubgraphs(element);
+        var newContext = GraphVisualizer.CopyContext(context);
+        element.children.forEach(element => {
+            if (element.type == "attr_stmt") {
+                GraphVisualizer.ParseGraphAttributes(newContext, element);
+            }
+        });
+        GraphVisualizer.DecorateGraph(element, newContext);
         element.children.forEach(element => {
             switch(element.type) {
                 case "node_stmt":
