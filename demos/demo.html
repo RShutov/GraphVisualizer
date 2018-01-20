@@ -2,20 +2,33 @@
 <html>
 <body>
     <script src="../lib/graphVisualizer.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <input type="file" id="your-files">
-    <div id="svgContainer"/>
+    <div id="svgContainer"></div>
+    <div id="hoverArea" style="width: 116px; height: 21px; background-color: aquamarine;"><center>Hover nodes</center></div>
+    <style>
+        /*  */
+        g.highlight ellipse, g.highlight circle, g.highlight rect  { fill: red; }
+        g.highlight path { stroke: red; }
+        g.highlight polygon { stroke: red; fill: red; }
+        /*  */
+    </style>
     <script>
+        $("#hoverArea").hide();
+        function AddHoverHandler(source, dest) {
+            var destId = "#" + dest.id();
+            $( "#" + source).hover(() => $(destId).addClass("highlight"), () => $(destId).removeClass("highlight"));
+        }
         var control = document.getElementById("your-files");
         control.addEventListener("change", function(event) {
-            var i = 0,
-            files = control.files,
-            len = files.length;
             var reader = new FileReader();
             reader.onload = function(event) {
                 var contents = event.target.result;
                 document.getElementById("svgContainer").innerHTML = "";
-                GraphVisualizer.Svg("svgContainer", contents);
+                GraphVisualizer.Svg("svgContainer", contents)
+                    .select(".dot-node").members.forEach(element => AddHoverHandler("hoverArea", element));
             };
+            $("#hoverArea").show();
             reader.onerror = function(event) {
                 console.error("File could not be read! Code " + event.target.error.code);
             };
