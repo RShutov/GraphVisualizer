@@ -15,12 +15,14 @@ export class GraphVisualizer {
         atr.pos = "0,0";
         atr.width = 0.75;
         atr.height = 0.5;
-        atr.fontSize = 14;
+        atr.fontsize = 14;
         atr.shape = "ellipse";
         atr.color = "black"
         atr.label = undefined;
-        atr.fillColor = "lightgrey";
+        atr.fillcolor = "lightgrey";
         atr.style = "solid";
+        atr.fontcolor = "black";
+        atr.fontname = "Times-Roman";
         return atr;
     }
 
@@ -65,23 +67,14 @@ export class GraphVisualizer {
         var atr = GraphVisualizer.GraphvizDefaults();
         node.attr_list.forEach(element => {
             switch(element.id) {
-                case "pos":
-                    atr.pos = element.eq;
-                    break;
                 case "width":
                     atr.width = parseFloat(element.eq);
                     break;
                 case "height":
                     atr.height = parseFloat(element.eq);
                     break;
-                case "fillcolor":
-                    atr.fillColor = element.eq;
-                    break;
-                case "style":
-                    atr.style = element.eq;
-                    break;
-                case "label":
-                    atr.label = element.eq;
+                default:
+                    atr[element.id] = element.eq;
                     break;
             }
         });
@@ -99,7 +92,7 @@ export class GraphVisualizer {
         var pos = GraphVisualizer.ParseNodePosition(atr.pos);
         switch(atr.style) {
             case "filled":
-                shape.fill(atr.fillColor);
+                shape.fill(atr.fillcolor);
                 break;
             case "solid":
                 shape.fill("#ffffff");
@@ -107,9 +100,13 @@ export class GraphVisualizer {
             }
         shape.stroke({ width: 1 })
         var text = group.text(atr.label != undefined ? atr.label : node.node_id.id);
-        var yOffset = atr.fontSize / 2;
-        text.move(pos.X, pos.Y - yOffset);
-        text.font({anchor: 'middle', size: atr.fontSize});
+        var yOffset = atr.fontsize;
+        text.font({
+            anchor: 'middle',
+            size: atr.fontsize,
+            family: atr.fontname,
+            fill: atr.fontcolor });
+        text.attr({ x: pos.X, y: pos.Y - yOffset});
         nodes.push(node.node_id.id);
     }
 
