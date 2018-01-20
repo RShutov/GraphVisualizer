@@ -8,6 +8,10 @@ export class GraphVisualizer {
         return dotparser(text);
     }
 
+    static GraphPrefix() {
+        return "dot-";
+    }
+
     static GraphvizDefaults(){
         //defaults taken from https://www.graphviz.org/doc/info/attrs.html
         var atr =  new Object();
@@ -87,8 +91,9 @@ export class GraphVisualizer {
             return;
         }
         var atr = GraphVisualizer.ParseAttributes(node);
-        var group = doc.group();
+        var group = doc.group().id(GraphVisualizer.GraphPrefix() + node.node_id.id);
         var shape = GraphVisualizer.CreateShape(group, atr);
+        shape.addClass('dot-shape');
         var pos = GraphVisualizer.ParseNodePosition(atr.pos);
         switch(atr.style) {
             case "filled":
@@ -107,6 +112,7 @@ export class GraphVisualizer {
             family: atr.fontname,
             fill: atr.fontcolor });
         text.attr({ x: pos.X, y: pos.Y - yOffset});
+        group.addClass('dot-node');
         nodes.push(node.node_id.id);
     }
 
@@ -129,9 +135,10 @@ export class GraphVisualizer {
     static ParseEdge(doc, edge) {
         var atr = GraphVisualizer.ParseAttributes(edge);
         var data = GraphVisualizer.ParseEdgePosition(atr.pos);
-        var path = doc.path(data.path);
+        var group = doc.group().id(GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
+        var path = group.path(data.path);
         path.fill('none').stroke({ width: 1, linecap: 'round', linejoin: 'round' }); 
-        GraphVisualizer.AddTip(doc, data);
+        GraphVisualizer.AddTip(group, data);
     }
 
     static ParseGraphAttributes(doc, container, attribute, isRoot) {
