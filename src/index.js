@@ -269,24 +269,59 @@ export class GraphVisualizer {
         return newContext;
     }
 
+    static FixSubgraphs(element) {
+        for(var i = 0; i < element.children.length; i++) {
+            if (element.children[i].type == "subgraph") {
+                element.children[i + 1].id = element.children[i].id;
+                element.children.splice(i, 1);
+            }
+        }
+    }
+
     static ParseGraph(context, element, nodes) {
+        /*
+         * Bug: dotparser creates two instances for single cluster – with 
+         * empty children and attributes but with filled id and vice versa
+        */
+        GraphVisualizer.FixSubgraphs(element);
         var newContext = GraphVisualizer.CopyContext(context);
+        var defaults = GraphVisualizer.GraphvizDefaults;
+        element.children.forEach(element => {
+            if (element.type == "attr_stmt") {
+                GraphVisualizer.ParseGraphAttributes(newContext, element);
+            }
+        });
+        if (element.id != undefined && element.id.startsWith("cluster")) {
+            var atr = newContext.graphDefaults;
+            var style = atr.style || defaults.style;
+            var bb = newContext.graphDefaults.bb.split(',');
+            var x0 = parseFloat(bb[0]);
+            var y0 = parseFloat(bb[1]);
+            var x1 = parseFloat(bb[2]);
+            var y1 = parseFloat(bb[3]);
+            var shape = newContext.container.rect().attr({
+                x: x0,
+                y: -y1,
+                width: x1 - x0,
+                height: y1 - y0
+            });
+            var fillColor = style == "filled" ? atr.fillcolor || atr.color  || defaults.fillcolor : "white";
+            shape.fill(fillColor);
+            shape.stroke({ width: 1, color: atr.color || defaults.color });
+        }
         element.children.forEach(element => {
             switch(element.type) {
                 case "node_stmt":
                     GraphVisualizer.ParseNode(newContext, element, nodes);
-                break;
+                    break;
                 case "edge_stmt":
                     GraphVisualizer.ParseEdge(newContext, element);
-                break;
-                case "attr_stmt" :
-                   GraphVisualizer.ParseGraphAttributes(newContext, element);
-                break;
+                    break;
                 case "subgraph" :
                     newContext.container = context.container.group();
                     newContext.isRoot = false;
                     GraphVisualizer.ParseGraph(newContext, element, nodes);
-                break;
+                    break;
             }
         });
     }
