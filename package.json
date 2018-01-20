@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "dotparser": "^0.1.3",
+    "svg.js": "^2.6.3",
+    "victor": "^1.1.0",
     "webpack": "^3.10.0"
   },
   "devDependencies": {},
