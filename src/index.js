@@ -25,6 +25,7 @@ export class GraphVisualizer {
         atr.label = "\\N";
         atr.class = undefined;
         atr.id = undefined;
+        atr.penwidth = 1;
         atr.fillcolor = "lightgrey";
         atr.style = "solid";
         atr.fontcolor = "black";
@@ -100,7 +101,8 @@ export class GraphVisualizer {
             group.addClass(atr.class);
         }
         var pos = GraphVisualizer.ParseNodePosition(atr.pos);
-        switch(atr.style) {
+        var style = atr.style || defaults.style;
+        switch(style) {
             case "filled": 
                 var fillColor = atr.fillcolor || atr.color  || GraphVisualizer.GraphvizDefaults.fillcolor;
                 shape.fill(fillColor);
@@ -141,13 +143,25 @@ export class GraphVisualizer {
     static ParseEdge(context, edge) {
         var atr = GraphVisualizer.ParseAttributes(edge.attr_list, context.edgeDefaults);
         var data = GraphVisualizer.ParseEdgePosition(atr.pos);
+        var defaults = GraphVisualizer.GraphvizDefaults;
         var group = context.container.group().id(atr.id != undefined ? atr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
         if(atr.class != undefined) {
             group.addClass(atr.class);
         }
-        path.fill('none').stroke({ width: 1, linecap: 'round', linejoin: 'round' }); 
+        path.fill('none').stroke({ width: atr.penwidth || defaults.penwidth, linecap: 'round', linejoin: 'round' }); 
         GraphVisualizer.AddTip(group, data);
+        if (atr.label != undefined) {
+            var fontSize = atr.fontsize || defaults.fontsize;
+            var text = context.container.text(atr.label.toString());
+            var pos = (atr.lp || `${x0},${-y1}`).split(',').map(e => parseFloat(e));
+            text.font({
+                anchor: 'middle',
+                size: fontSize,
+                family: atr.fontname || defaults.fontname,
+                fill: atr.fontcolor || defaults.fontcolor });
+            text.attr({ x: pos[0], y: -pos[1] - fontSize});
+        }
     }
 
     static ParseGraphAttributes(context, attribute) {
