@@ -165,6 +165,12 @@ export class GraphVisualizer {
         switch(atributes.shape) {
             case "ellipse":
                 return container.ellipse().move(pos.X, pos.Y).radius(width / 2, height / 2);
+            case "circle":
+                return container.circle().move(pos.X, pos.Y).radius(height / 2);
+            case "box":
+            case "rect":
+            case "rectangle":
+                return container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
         }
     }
 
