@@ -179,6 +179,39 @@ export class GraphVisualizer {
             case "rect":
             case "rectangle":
                 return container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
+            case "diamond":
+                return container
+                    .polygon(`${-width / 2},${0} ${0},${ height / 2} ${width / 2},${0} ${0},${ -height / 2}`)
+                    .move(pos.X, pos.Y);
+            case "Mdiamond":
+                var offset = 5;
+                var a = new Victor(pos.X - width / 2, pos.Y);
+                var b = new Victor(pos.X, pos.Y + height / 2);
+                var c = new Victor(pos.X + width / 2, pos.Y);
+                var d = new Victor(pos.X, pos.Y - height / 2);
+                var shape = container
+                    .polygon(`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`);
+                var offsetv = offset * width / height;
+                var deltah = width  / 2 * (offset * 2 / height);
+                var deltav = height / 2 * (offsetv * 2 / width);
+                container.line(a.x + deltah, a.y + offset, a.x + deltah, a.y - offset).stroke({ width: 1 });
+                container.line(b.x - offsetv, b.y - deltav, b.x  + offsetv, b.y - deltav).stroke({ width: 1 });
+                container.line(c.x - deltah, c.y + offset, c.x - deltah, c.y - offset).stroke({ width: 1 });
+                container.line(d.x - offsetv, d.y + deltav, d.x  + offsetv, d.y + deltav).stroke({ width: 1 });
+                return shape;
+            case "Msquare":
+                var offset = 15;
+                var a = new Victor(pos.X - width / 2, pos.Y - height / 2);
+                var b = new Victor(pos.X + width / 2, pos.Y - height / 2);
+                var c = new Victor(pos.X + width / 2, pos.Y + height / 2);
+                var d = new Victor(pos.X - width / 2, pos.Y + height / 2);
+                var shape =  container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
+                var delta = offset / 2;
+                container.line(a.x + delta, a.y, a.x, a.y + delta).stroke({ width: 1 });
+                container.line(b.x - delta, b.y, b.x, b.y + delta).stroke({ width: 1 });
+                container.line(c.x, c.y - delta, c.x - delta, c.y).stroke({ width: 1 });
+                container.line(d.x, d.y - delta, d.x + delta, d.y).stroke({ width: 1 });
+            return shape;
         }
     }
 
