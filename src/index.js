@@ -150,6 +150,7 @@ export class GraphVisualizer {
     }
 
     static SetupGraphAttributes(doc, container,  attributes, isRoot) {
+        var offset = 4;
         attributes.forEach(element => {
             switch(element.id) {
                 case "bb":
@@ -157,8 +158,8 @@ export class GraphVisualizer {
                         var bb = element.eq.split(',');
                         var x = parseFloat(bb[2]);
                         var y = parseFloat(bb[3]);
-                        doc.size(x, y);
-                        container.move(0, y);
+                        doc.size(x + offset, y + offset);
+                        container.move(offset / 2, y + offset / 2);
                     }
                 break;
             }
