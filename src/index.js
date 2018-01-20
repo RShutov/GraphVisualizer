@@ -23,6 +23,8 @@ export class GraphVisualizer {
         atr.shape = "ellipse";
         atr.color = "black"
         atr.label = undefined;
+        atr.class = undefined;
+        atr.id = undefined;
         atr.fillcolor = "lightgrey";
         atr.style = "solid";
         atr.fontcolor = "black";
@@ -91,9 +93,12 @@ export class GraphVisualizer {
             return;
         }
         var atr = GraphVisualizer.ParseAttributes(node);
-        var group = doc.group().id(GraphVisualizer.GraphPrefix() + node.node_id.id);
+        var group = doc.group().id(atr.id != undefined? atr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
         var shape = GraphVisualizer.CreateShape(group, atr);
         shape.addClass('dot-shape');
+        if(atr.class != undefined) {
+            group.addClass(atr.class);
+        }
         var pos = GraphVisualizer.ParseNodePosition(atr.pos);
         switch(atr.style) {
             case "filled":
@@ -135,8 +140,11 @@ export class GraphVisualizer {
     static ParseEdge(doc, edge) {
         var atr = GraphVisualizer.ParseAttributes(edge);
         var data = GraphVisualizer.ParseEdgePosition(atr.pos);
-        var group = doc.group().id(GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
+        var group = doc.group().id(atr.id != undefined ? atr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
+        if(atr.class != undefined) {
+            group.addClass(atr.class);
+        }
         path.fill('none').stroke({ width: 1, linecap: 'round', linejoin: 'round' }); 
         GraphVisualizer.AddTip(group, data);
     }
