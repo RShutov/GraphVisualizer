@@ -149,7 +149,12 @@ export class GraphVisualizer {
         if(atr.class != undefined) {
             group.addClass(atr.class);
         }
-        path.fill('none').stroke({ width: atr.penwidth || defaults.penwidth, linecap: 'round', linejoin: 'round' }); 
+        path.fill('none').stroke({
+            width: atr.penwidth || defaults.penwidth,
+            linecap: 'round',
+            linejoin: 'round',
+            color: atr.color || defaults.color,
+        }); 
         GraphVisualizer.AddTip(group, data);
         if (atr.label != undefined) {
             var fontSize = atr.fontsize || defaults.fontsize;
