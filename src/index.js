@@ -151,7 +151,7 @@ export class GraphVisualizer
                 break;
         }
         shape.stroke({ width: 1, color: atr.color });
-        var text = group.text(atr.label != "\\N" ? atr.label : node.node_id.id);
+        var text = group.text(atr.label != defaults.label ? atr.label : node.node_id.id);
         var fontSize = atr.fontsize || defaults.fontsize;
         text.font({
             anchor: 'middle',
