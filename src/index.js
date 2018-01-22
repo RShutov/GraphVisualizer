@@ -122,7 +122,6 @@ export class GraphVisualizer
                     break;
             }
         });
-        return attr;
     }
 
     static ParseNode(context, node, nodes)
@@ -132,9 +131,10 @@ export class GraphVisualizer
             return;
         }
         var defaults = GraphVisualizer.GraphvizDefaults;
-        var attr = GraphVisualizer.ParseAttributes(node.attr_list, context.nodeDefaults);
+        var attr = Object.assign({}, context.nodeDefaults);
+        GraphVisualizer.ParseAttributes(node.attr_list, attr);
         var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
-        var shape = GraphVisualizer.ParseShape(group, attr);
+        var shape = GraphVisualizer.ParseShape(group, attr, node.node_id.id);
         shape.addClass('dot-shape');
         if(attr.class) {
             group.addClass(attr.class);
@@ -151,14 +151,6 @@ export class GraphVisualizer
                 break;
         }
         shape.stroke({ width: 1, color: attr.color });
-        var text = group.text(attr.label != defaults.label ? attr.label : node.node_id.id);
-        var fontSize = attr.fontsize || defaults.fontsize;
-        text.font({
-            anchor: 'middle',
-            size: fontSize,
-            family: attr.fontname || defaults.fontname,
-            fill: attr.fontcolor || defaults.fontcolor });
-        text.attr({ x: pos.X, y: pos.Y - fontSize});
         group.addClass('dot-node');
         nodes.push(node.node_id.id);
     }
@@ -180,7 +172,8 @@ export class GraphVisualizer
 
     static ParseEdge(context, edge)
     {
-        var attr = GraphVisualizer.ParseAttributes(edge.attr_list, context.edgeDefaults);
+        var attr = Object.assign({}, context.edgeDefaults)
+        GraphVisualizer.ParseAttributes(edge.attr_list, attr);
         var positions = GraphVisualizer.ParsePositionArray(attr.pos);
         var data = GraphVisualizer.ConstructSplines(positions);
         var defaults = GraphVisualizer.GraphvizDefaults;
@@ -229,34 +222,86 @@ export class GraphVisualizer
         }
     }
     
-    static ParseShape (container, attributes)
+    static ParseRecordLabel(container, label)
+    {
+        var labels = label.split('|');
+        labels.forEach((v, i, a) => {
+            a[i] = a[i].trim();
+            if (a[i].startsWith('{')){
+                a[i] = a[i].slice(1, a[i].length);
+            }
+            if (a[i].endsWith('}')) {
+                a[i] = a[i].slice(0, a[i].length - 1);
+            }
+            a[i] = a[i].trim();
+            var components = a[i].split(' ');
+            a[i] = components[components.length -1];
+        });
+        return labels;
+    }
+
+    static ParseRecord(container, attributes)
+    {
+        var defaults = GraphVisualizer.GraphvizDefaults;
+        var group = container.group();
+        var labels = GraphVisualizer.ParseRecordLabel(group, attributes.label);
+        var i = 0;
+        var rects = attributes.rects
+            .split(' ')
+            .map((v, i ,a) => GraphVisualizer.ParseRectangle(v))
+            .forEach(v => {
+                var width = v.x1 - v.x0;
+                var height = v.y1 - v.y0;
+                group.rect(width, height).move(v.x0, -v.y1);
+                var text = container.text(labels[i]);
+                var fontSize = attributes.fontsize || defaults.fontsize;
+                text.font({
+                    anchor: 'middle',
+                    size: fontSize,
+                    family: attributes.fontname || defaults.fontname,
+                    fill: attributes.fontcolor || defaults.fontcolor });
+                text.attr({ x: v.x0 + width / 2, y: -v.y1 - fontSize + height / 2});  
+                i++;
+            });
+        return group;
+    }
+
+
+    static ParseShape (container, attributes, id)
     {
         var defaults = GraphVisualizer.GraphvizDefaults;
         var width = attributes.width * defaults.dpi;
         var height = attributes.height * defaults.dpi;
         var pos = GraphVisualizer.ParseNodePosition(attributes.pos);
-        var shape = attributes.shape || defaults.shape;
         var color = attributes.color || defaults.color;
-        switch(shape) {
+        var shape = {};
+        switch(attributes.shape || defaults.shape) {
+            case "record":
+                return GraphVisualizer.ParseRecord(container, attributes); 
+            case "oval":
             case "ellipse":
-                return container.ellipse().move(pos.X, pos.Y).radius(width / 2, height / 2);
+                shape = container.ellipse().move(pos.X, pos.Y).radius(width / 2, height / 2);
+                break;
             case "circle":
-                return container.circle().move(pos.X, pos.Y).radius(height / 2);
+                shape = container.circle().move(pos.X, pos.Y).radius(height / 2);
+                break;
             case "box":
             case "rect":
             case "rectangle":
-                return container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
+                shape = container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
+                break;
             case "diamond":
-                return container
+                shape = container
                     .polygon(`${-width / 2},${0} ${0},${ height / 2} ${width / 2},${0} ${0},${ -height / 2}`)
                     .move(pos.X, pos.Y);
+                break;
             case "Mdiamond":
                 var offset = 5;
                 var a = new Victor(pos.X - width / 2, pos.Y);
                 var b = new Victor(pos.X, pos.Y + height / 2);
                 var c = new Victor(pos.X + width / 2, pos.Y);
                 var d = new Victor(pos.X, pos.Y - height / 2);
-                var shape = container
+                shape = container
                     .polygon(`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`);
                 var offsetv = offset * width / height;
                 var deltah = width  / 2 * (offset * 2 / height);
@@ -265,21 +310,30 @@ export class GraphVisualizer
                 container.line(b.x - offsetv, b.y - deltav, b.x  + offsetv, b.y - deltav).stroke({ width: 1, color: color });
                 container.line(c.x - deltah, c.y + offset, c.x - deltah, c.y - offset).stroke({ width: 1, color: color });
                 container.line(d.x - offsetv, d.y + deltav, d.x  + offsetv, d.y + deltav).stroke({ width: 1, color: color });
-                return shape;
+                break;
             case "Msquare":
                 var offset = 15;
                 var a = new Victor(pos.X - width / 2, pos.Y - height / 2);
                 var b = new Victor(pos.X + width / 2, pos.Y - height / 2);
                 var c = new Victor(pos.X + width / 2, pos.Y + height / 2);
                 var d = new Victor(pos.X - width / 2, pos.Y + height / 2);
-                var shape =  container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
+                shape =  container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
                 var delta = offset / 2;
                 container.line(a.x + delta, a.y, a.x, a.y + delta).stroke({ width: 1, color: color });
                 container.line(b.x - delta, b.y, b.x, b.y + delta).stroke({ width: 1, color: color });
                 container.line(c.x, c.y - delta, c.x - delta, c.y).stroke({ width: 1, color: color });
                 container.line(d.x, d.y - delta, d.x + delta, d.y).stroke({ width: 1, color: color });
-            return shape;
+                break;
         }
+        var text = container.text(attributes.label != defaults.label ? attributes.label : id);
+        var fontSize = attributes.fontsize || defaults.fontsize;
+        text.font({
+            anchor: 'middle',
+            size: fontSize,
+            family: attributes.fontname || defaults.fontname,
+            fill: attributes.fontcolor || defaults.fontcolor });
+        text.attr({ x: pos.X, y: pos.Y - fontSize});
+        return shape;
     }
 
     static CopyContext(context)
