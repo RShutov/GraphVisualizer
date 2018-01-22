@@ -14,7 +14,7 @@ export class GraphVisualizer {
 
     static get GraphvizDefaults(){
         //defaults taken from https://www.graphviz.org/doc/info/attrs.html
-        var atr =  new Object();
+        var atr =  {};
         atr.dpi = 72.0;
         atr.pos = "0,0";
         atr.width = 0.75;
@@ -34,7 +34,7 @@ export class GraphVisualizer {
     }
 
     static ParseNodePosition(text){
-        var pos = new Object();
+        var pos = {};
         var result = text.split(',');
         pos.X =  parseFloat(result[0]);
         //hack: parseFloat ignore all characters after valid float number, so optional symbol '!' will be ignored
@@ -44,7 +44,7 @@ export class GraphVisualizer {
     }
 
     static ParseEdgePosition(text){
-        var data = new Object();
+        var data = {};
         //move to the first position
         var str = "M";
         var positions = text.split(' ');
@@ -170,7 +170,7 @@ export class GraphVisualizer {
     }
 
     static ParseGraphAttributes(context, attribute) {
-        var attributes = new Object();
+        var attributes = {};
         switch(attribute.target) {
             case "graph":
                 attributes = context.graphDefaults;
@@ -269,13 +269,13 @@ export class GraphVisualizer {
 
     static Svg(id, data) {
         var doc = new SVG(id)
-        var context = new Object();
+        var context = {};
         context.isRoot = true;
         context.doc = doc;
         context.container = doc.group();
-        context.nodeDefaults = new Object();
-        context.graphDefaults = new Object();
-        context.edgeDefaults = new Object();
+        context.nodeDefaults = {};
+        context.graphDefaults = {};
+        context.edgeDefaults = {};
         GraphVisualizer.ParseGraph(context, GraphVisualizer.parseGraph(data)[0], new Array());
         return doc;
     }
