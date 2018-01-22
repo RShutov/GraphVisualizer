@@ -13,23 +13,23 @@ export class GraphVisualizer
     static get GraphvizDefaults()
     {
         //defaults taken from https://www.graphviz.org/doc/info/attrs.html
-        var atr =  {};
-        atr.dpi = 72.0;
-        atr.pos = "0,0";
-        atr.width = 0.75;
-        atr.height = 0.5;
-        atr.fontsize = 14;
-        atr.shape = "ellipse";
-        atr.color = "black"
-        atr.label = "\\N";
-        atr.class = undefined;
-        atr.id = undefined;
-        atr.penwidth = 1;
-        atr.fillcolor = "lightgrey";
-        atr.style = "solid";
-        atr.fontcolor = "black";
-        atr.fontname = "Times-Roman";
-        return atr;
+        var attr =  {};
+        attr.dpi = 72.0;
+        attr.pos = "0,0";
+        attr.width = 0.75;
+        attr.height = 0.5;
+        attr.fontsize = 14;
+        attr.shape = "ellipse";
+        attr.color = "black"
+        attr.label = "\\N";
+        attr.class = undefined;
+        attr.id = undefined;
+        attr.penwidth = 1;
+        attr.fillcolor = "lightgrey";
+        attr.style = "solid";
+        attr.fontcolor = "black";
+        attr.fontname = "Times-Roman";
+        return attr;
     }
 
     static Svg(id, data)
@@ -107,22 +107,22 @@ export class GraphVisualizer
         return pos;
     }
 
-    static ParseAttributes(attr_list, atr)
+    static ParseAttributes(attr_list, attr)
     {
         attr_list.forEach(element => {
             switch(element.id) {
                 case "width":
-                    atr.width = parseFloat(element.eq);
+                    attr.width = parseFloat(element.eq);
                     break;
                 case "height":
-                    atr.height = parseFloat(element.eq);
+                    attr.height = parseFloat(element.eq);
                     break;
                 default:
-                    atr[element.id] = element.eq;
+                    attr[element.id] = element.eq;
                     break;
             }
         });
-        return atr;
+        return attr;
     }
 
     static ParseNode(context, node, nodes)
@@ -132,32 +132,32 @@ export class GraphVisualizer
             return;
         }
         var defaults = GraphVisualizer.GraphvizDefaults;
-        var atr = GraphVisualizer.ParseAttributes(node.attr_list, context.nodeDefaults);
-        var group = context.container.group().id(atr.id ? atr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
-        var shape = GraphVisualizer.ParseShape(group, atr);
+        var attr = GraphVisualizer.ParseAttributes(node.attr_list, context.nodeDefaults);
+        var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
+        var shape = GraphVisualizer.ParseShape(group, attr);
         shape.addClass('dot-shape');
-        if(atr.class) {
-            group.addClass(atr.class);
+        if(attr.class) {
+            group.addClass(attr.class);
         }
-        var pos = GraphVisualizer.ParseNodePosition(atr.pos);
-        var style = atr.style || defaults.style;
+        var pos = GraphVisualizer.ParseNodePosition(attr.pos);
+        var style = attr.style || defaults.style;
         switch(style) {
             case "filled": 
-                var fillColor = atr.fillcolor || atr.color  || GraphVisualizer.GraphvizDefaults.fillcolor;
+                var fillColor = attr.fillcolor || attr.color  || GraphVisualizer.GraphvizDefaults.fillcolor;
                 shape.fill(fillColor);
                 break;
             case "solid":
                 shape.fill("#ffffff");
                 break;
         }
-        shape.stroke({ width: 1, color: atr.color });
-        var text = group.text(atr.label != defaults.label ? atr.label : node.node_id.id);
-        var fontSize = atr.fontsize || defaults.fontsize;
+        shape.stroke({ width: 1, color: attr.color });
+        var text = group.text(attr.label != defaults.label ? attr.label : node.node_id.id);
+        var fontSize = attr.fontsize || defaults.fontsize;
         text.font({
             anchor: 'middle',
             size: fontSize,
-            family: atr.fontname || defaults.fontname,
-            fill: atr.fontcolor || defaults.fontcolor });
+            family: attr.fontname || defaults.fontname,
+            fill: attr.fontcolor || defaults.fontcolor });
         text.attr({ x: pos.X, y: pos.Y - fontSize});
         group.addClass('dot-node');
         nodes.push(node.node_id.id);
@@ -180,31 +180,31 @@ export class GraphVisualizer
 
     static ParseEdge(context, edge)
     {
-        var atr = GraphVisualizer.ParseAttributes(edge.attr_list, context.edgeDefaults);
-        var positions = GraphVisualizer.ParsePositionArray(atr.pos);
+        var attr = GraphVisualizer.ParseAttributes(edge.attr_list, context.edgeDefaults);
+        var positions = GraphVisualizer.ParsePositionArray(attr.pos);
         var data = GraphVisualizer.ConstructSplines(positions);
         var defaults = GraphVisualizer.GraphvizDefaults;
-        var group = context.container.group().id(atr.id ? atr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
+        var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
-        if(atr.class) {
-            group.addClass(atr.class);
+        if(attr.class) {
+            group.addClass(attr.class);
         }
         path.fill('none').stroke({
-            width: atr.penwidth || defaults.penwidth,
+            width: attr.penwidth || defaults.penwidth,
             linecap: 'round',
             linejoin: 'round',
-            color: atr.color || defaults.color,
+            color: attr.color || defaults.color,
         }); 
         GraphVisualizer.ParseTip(group, positions[positions.length - 1], positions[0]);
-        if (atr.label) {
-            var fontSize = atr.fontsize || defaults.fontsize;
-            var text = context.container.text(atr.label.toString());
-            var pos = atr.lp ? GraphVisualizer.ParseNodePosition(atr.lp) : { x: x0, y: -y1 };
+        if (attr.label) {
+            var fontSize = attr.fontsize || defaults.fontsize;
+            var text = context.container.text(attr.label.toString());
+            var pos = attr.lp ? GraphVisualizer.ParseNodePosition(attr.lp) : { x: x0, y: -y1 };
             text.font({
                 anchor: 'middle',
                 size: fontSize,
-                family: atr.fontname || defaults.fontname,
-                fill: atr.fontcolor || defaults.fontcolor });
+                family: attr.fontname || defaults.fontname,
+                fill: attr.fontcolor || defaults.fontcolor });
             text.attr({ x: pos.x, y: -pos.y - fontSize});
         }
     }
@@ -229,14 +229,14 @@ export class GraphVisualizer
         }
     }
     
-    static ParseShape (container, atributes)
+    static ParseShape (container, attributes)
     {
         var defaults = GraphVisualizer.GraphvizDefaults;
-        var width = atributes.width * defaults.dpi;
-        var height = atributes.height * defaults.dpi;
-        var pos = GraphVisualizer.ParseNodePosition(atributes.pos);
-        var shape = atributes.shape || defaults.shape;
-        var color = atributes.color || defaults.color;
+        var width = attributes.width * defaults.dpi;
+        var height = attributes.height * defaults.dpi;
+        var pos = GraphVisualizer.ParseNodePosition(attributes.pos);
+        var shape = attributes.shape || defaults.shape;
+        var color = attributes.color || defaults.color;
         switch(shape) {
             case "ellipse":
                 return container.ellipse().move(pos.X, pos.Y).radius(width / 2, height / 2);
@@ -304,29 +304,29 @@ export class GraphVisualizer
     static DecorateGraph(element, context)
     {
         var defaults = GraphVisualizer.GraphvizDefaults;
-        var atr = context.graphDefaults;
+        var attr = context.graphDefaults;
         var bb = GraphVisualizer.ParseRectangle(context.graphDefaults.bb);
         if (element.id && element.id.startsWith("cluster")) {
-            var style = atr.style || defaults.style;
+            var style = attr.style || defaults.style;
             var shape = context.container.rect().attr({
                 x: bb.x0,
                 y: -bb.y1,
                 width: bb.x1 - bb.x0,
                 height: bb.y1 - bb.y0
             });
-            var fillColor = style == "filled" ? atr.fillcolor || atr.color  || defaults.fillcolor : "white";
+            var fillColor = style == "filled" ? attr.fillcolor || attr.color  || defaults.fillcolor : "white";
             shape.fill(fillColor);
-            shape.stroke({ width: 1, color: atr.color || defaults.color });
+            shape.stroke({ width: 1, color: attr.color || defaults.color });
         }
-        if (atr.label) {
-            var fontSize = atr.lheight * defaults.dpi || defaults.fontsize;
-            var pos = atr.lp ? GraphVisualizer.ParseNodePosition(atr.lp) : { x: bb.x0, y: -bb.y1 };
-            var text = context.container.text(atr.label);
+        if (attr.label) {
+            var fontSize = attr.lheight * defaults.dpi || defaults.fontsize;
+            var pos = attr.lp ? GraphVisualizer.ParseNodePosition(attr.lp) : { x: bb.x0, y: -bb.y1 };
+            var text = context.container.text(attr.label);
             text.font({
                 anchor: 'middle',
                 size: fontSize,
-                family: atr.fontname || defaults.fontname,
-                fill: atr.fontcolor || defaults.fontcolor });
+                family: attr.fontname || defaults.fontname,
+                fill: attr.fontcolor || defaults.fontcolor });
             text.attr({ x: pos.x, y: -pos.y - fontSize});
         }
     }
