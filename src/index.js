@@ -42,8 +42,13 @@ export class GraphVisualizer
         context.nodeDefaults = {};
         context.graphDefaults = {};
         context.edgeDefaults = {};
+        data = GraphVisualizer.RemoveLineEndWrapping(data);
         GraphVisualizer.ParseSubgraph(context, GraphVisualizer.ParseGraph(data)[0], new Array());
         return doc;
+    }
+
+    static RemoveLineEndWrapping(text) {
+        return text.replace(new RegExp('\\\n', 'g'), '');
     }
 
     static ParseGraph(text)
