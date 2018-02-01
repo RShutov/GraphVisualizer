@@ -386,7 +386,7 @@ export class GraphVisualizer
                 size: fontSize,
                 family: attr.fontname || defaults.fontname,
                 fill: attr.fontcolor || defaults.fontcolor });
-            text.attr({ x: pos.x, y: -pos.y - fontSize});
+            text.attr({ x: pos.X, y: pos.Y - fontSize});
         }
     }
 
