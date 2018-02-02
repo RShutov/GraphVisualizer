@@ -2,6 +2,8 @@ var dotparser = require('dotparser');
 var SVG = require('svg.js');
 var Victor = require('victor');
 var Context = require('./Context.js')
+var Attributes = require('./Attributes.js')
+var AttributeParser = require('./AttributeParser.js')
 
 export class GraphVisualizer
 {
@@ -47,80 +49,26 @@ export class GraphVisualizer
         element.children.filter(e => e.type == "node_stmt").forEach(e => GraphVisualizer.ParseNode(newContext, e, nodes));
     }
 
-    /*
-    * Field 'type' contains information about dot type:
-    * 'r' – regular dot
-    * 'e' – end point
-    * 's' – start point
-    */
-    static ParseNodePosition(text)
-    {
-        var pos = {};
-        var result = text.split(',');
-        pos.type = "r";
-        if (result.length == 3) {
-            pos.type = result.splice(0, 1)[0];
-        }
-        pos.X =  parseFloat(result[0]);
-        //hack: parseFloat ignore all characters after valid float number, so optional symbol '!' will be ignored
-        // invert y position to change default y-axis orientation
-        pos.Y = -parseFloat(result[1]);
-        return pos;
-    }
-
-    static ParsePositionArray(text)
-    {
-        return text.split(' ').map((v, i, a) => GraphVisualizer.ParseNodePosition(v));
-    }
-
-    static ParseRectangle(text)
-    {
-        var pos = {};
-        var result = text.split(',');
-        pos.x0 = parseFloat(result[0]);
-        pos.y0 = parseFloat(result[1]);
-        pos.x1 = parseFloat(result[2]);
-        pos.y1 = parseFloat(result[3]);
-        return pos;
-    }
-
-    static ParseAttributes(attr_list, attr)
-    {
-        attr_list.forEach(element => {
-            switch(element.id) {
-                case "width":
-                    attr.width = parseFloat(element.eq);
-                    break;
-                case "height":
-                    attr.height = parseFloat(element.eq);
-                    break;
-                default:
-                    attr[element.id] = element.eq;
-                    break;
-            }
-        });
-    }
-
     static ParseNode(context, node, nodes)
     {
         //check if the node already exists
         if (nodes.includes(node.node_id.id)) {
             return;
         }
-        var defaults = Context.GraphvizDefaults;
-        var attr = Object.assign({}, context.nodeDefaults);
-        GraphVisualizer.ParseAttributes(node.attr_list, attr);
+        var defaults = Attributes.Default;
+        var attr = context.nodeDefaults.Copy();
+        attr.Override(node.attr_list);
         var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
         var shape = GraphVisualizer.ParseShape(group, attr, node.node_id.id);
         shape.addClass('dot-shape');
         if(attr.class) {
             group.addClass(attr.class);
         }
-        var pos = GraphVisualizer.ParseNodePosition(attr.pos);
+        var pos = AttributeParser.ParseNodePosition(attr.pos);
         var style = attr.style || defaults.style;
         switch(style) {
             case "filled": 
-                var fillColor = attr.fillcolor || attr.color  || Context.GraphvizDefaults.fillcolor;
+                var fillColor = attr.fillcolor || attr.color  || Attributes.Default.fillcolor;
                 shape.fill(fillColor);
                 break;
             case "solid":
@@ -149,11 +97,11 @@ export class GraphVisualizer
 
     static ParseEdge(context, edge)
     {
-        var attr = Object.assign({}, context.edgeDefaults)
-        GraphVisualizer.ParseAttributes(edge.attr_list, attr);
-        var positions = GraphVisualizer.ParsePositionArray(attr.pos);
+        var attr = context.edgeDefaults.Copy();
+        attr.Override(edge.attr_list);
+        var positions = AttributeParser.ParsePositionArray(attr.pos);
         var data = GraphVisualizer.ConstructSplines(positions);
-        var defaults = Context.GraphvizDefaults;
+        var defaults = Attributes.Default;
         var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
         if(attr.class) {
@@ -169,7 +117,7 @@ export class GraphVisualizer
         if (attr.label) {
             var fontSize = attr.fontsize || defaults.fontsize;
             var text = context.container.text(attr.label.toString());
-            var pos = attr.lp ? GraphVisualizer.ParseNodePosition(attr.lp) : { x: x0, y: -y1 };
+            var pos = attr.lp ? AttributeParser.ParseNodePosition(attr.lp) : { x: x0, y: -y1 };
             text.font({
                 anchor: 'middle',
                 size: fontSize,
@@ -181,7 +129,7 @@ export class GraphVisualizer
 
     static ParseGraphAttributes(context, attribute)
     {
-        var attributes = {};
+        var attributes = new Attributes();
         switch(attribute.target) {
             case "graph":
                 attributes = context.graphDefaults;
@@ -193,39 +141,21 @@ export class GraphVisualizer
                 attributes = context.edgeDefaults;
                 break;
         }
-        GraphVisualizer.ParseAttributes(attribute.attr_list, attributes);
+        attributes.Override(attribute.attr_list);
         if (context.isRoot && attribute.target == "graph") {
             GraphVisualizer.SetupDocumentBounds(context, attributes);
         }
     }
-    
-    static ParseRecordLabel(container, label)
-    {
-        var labels = label.split('|');
-        labels.forEach((v, i, a) => {
-            a[i] = a[i].trim();
-            if (a[i].startsWith('{')){
-                a[i] = a[i].slice(1, a[i].length);
-            }
-            if (a[i].endsWith('}')) {
-                a[i] = a[i].slice(0, a[i].length - 1);
-            }
-            a[i] = a[i].trim();
-            var components = a[i].split(' ');
-            a[i] = components[components.length -1];
-        });
-        return labels;
-    }
 
     static ParseRecord(container, attributes)
     {
-        var defaults = Context.GraphvizDefaults;
+        var defaults = Attributes.Default;
         var group = container.group();
-        var labels = GraphVisualizer.ParseRecordLabel(group, attributes.label);
+        var labels = AttributeParser.ParseRecordLabel(group, attributes.label);
         var i = 0;
         var rects = attributes.rects
             .split(' ')
-            .map((v, i ,a) => GraphVisualizer.ParseRectangle(v))
+            .map((v, i ,a) => AttributeParser.ParseRectangle(v))
             .forEach(v => {
                 var width = v.x1 - v.x0;
                 var height = v.y1 - v.y0;
@@ -246,10 +176,10 @@ export class GraphVisualizer
 
     static ParseShape (container, attributes, id)
     {
-        var defaults = Context.GraphvizDefaults;
+        var defaults = Attributes.Default;
         var width = attributes.width * defaults.dpi;
         var height = attributes.height * defaults.dpi;
-        var pos = GraphVisualizer.ParseNodePosition(attributes.pos);
+        var pos = AttributeParser.ParseNodePosition(attributes.pos);
         var color = attributes.color || defaults.color;
         var shape = {};
         switch(attributes.shape || defaults.shape) {
@@ -313,15 +243,6 @@ export class GraphVisualizer
         return shape;
     }
 
-    static CopyContext(context)
-    {
-        var newContext = Object.assign({}, context);
-        newContext.nodeDefaults = Object.assign({}, context.nodeDefaults);
-        newContext.edgeDefaults = Object.assign({}, context.edgeDefaults);
-        newContext.graphDefaults = Object.assign({}, context.graphDefaults);
-        return newContext;
-    }
-
     static FixSubgraphs(element)
     {
         for(var i = 0; i < element.children.length; i++) {
@@ -334,9 +255,9 @@ export class GraphVisualizer
 
     static DecorateGraph(element, context)
     {
-        var defaults = Context.GraphvizDefaults;
+        var defaults = Attributes.Default;
         var attr = context.graphDefaults;
-        var bb = GraphVisualizer.ParseRectangle(context.graphDefaults.bb);
+        var bb = AttributeParser.ParseRectangle(context.graphDefaults.bb);
         if (element.id && element.id.startsWith("cluster")) {
             var style = attr.style || defaults.style;
             var shape = context.container.rect().attr({
@@ -351,7 +272,7 @@ export class GraphVisualizer
         }
         if (attr.label) {
             var fontSize = attr.lheight * defaults.dpi || defaults.fontsize;
-            var pos = attr.lp ? GraphVisualizer.ParseNodePosition(attr.lp) : { x: bb.x0, y: -bb.y1 };
+            var pos = attr.lp ? AttributeParser.ParseNodePosition(attr.lp) : { x: bb.x0, y: -bb.y1 };
             var text = context.container.text(attr.label);
             text.font({
                 anchor: 'middle',
@@ -365,7 +286,7 @@ export class GraphVisualizer
     static SetupDocumentBounds(context, attributes)
     {
         var offset = 4;
-        var bb = GraphVisualizer.ParseRectangle(context.graphDefaults.bb)
+        var bb = AttributeParser.ParseRectangle(context.graphDefaults.bb)
         context.doc.size(bb.x1 + offset, bb.y1 + offset);
         context.container.move(offset / 2, bb.y1 + offset / 2);
     }
@@ -377,7 +298,7 @@ export class GraphVisualizer
             switch(element.id) {
                 case "bb":
                     if (context.isRoot) {
-                        var bb = GraphVisualizer.ParseRectangle(element.eq);
+                        var bb = AttributeParser.ParseRectangle(element.eq);
                         context.doc.size(bb.x1 + offset, bb.y1 + offset);
                         context.container.move(offset / 2, bb.y1 + offset / 2);
                     }
