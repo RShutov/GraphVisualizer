@@ -1,47 +1,19 @@
 var dotparser = require('dotparser');
 var SVG = require('svg.js');
 var Victor = require('victor');
+var Context = require('./Context.js')
 
 export class GraphVisualizer
 {
-    
     static GraphPrefix()
     {
         return "dot-";
     }
 
-    static get GraphvizDefaults()
-    {
-        //defaults taken from https://www.graphviz.org/doc/info/attrs.html
-        var attr =  {};
-        attr.dpi = 72.0;
-        attr.pos = "0,0";
-        attr.width = 0.75;
-        attr.height = 0.5;
-        attr.fontsize = 14;
-        attr.shape = "ellipse";
-        attr.color = "black"
-        attr.label = "\\N";
-        attr.class = undefined;
-        attr.id = undefined;
-        attr.penwidth = 1;
-        attr.fillcolor = "lightgrey";
-        attr.style = "solid";
-        attr.fontcolor = "black";
-        attr.fontname = "Times-Roman";
-        return attr;
-    }
-
     static Svg(id, data)
     {
         var doc = new SVG(id)
-        var context = {};
-        context.isRoot = true;
-        context.doc = doc;
-        context.container = doc.group();
-        context.nodeDefaults = {};
-        context.graphDefaults = {};
-        context.edgeDefaults = {};
+        var context = new Context(doc);
         data = GraphVisualizer.RemoveLineEndWrapping(data);
         GraphVisualizer.ParseSubgraph(context, GraphVisualizer.ParseGraph(data)[0], new Array());
         return doc;
@@ -63,7 +35,7 @@ export class GraphVisualizer
          * empty children and attributes but with filled id and vice versa
         */
         GraphVisualizer.FixSubgraphs(element);
-        var newContext = GraphVisualizer.CopyContext(context);
+        var newContext = context.Copy();
         element.children.filter(e => e.type == "attr_stmt").forEach(e => GraphVisualizer.ParseGraphAttributes(newContext, e));
         GraphVisualizer.DecorateGraph(element, newContext);
         element.children.filter(e => e.type == "subgraph").forEach(e => {
@@ -135,7 +107,7 @@ export class GraphVisualizer
         if (nodes.includes(node.node_id.id)) {
             return;
         }
-        var defaults = GraphVisualizer.GraphvizDefaults;
+        var defaults = Context.GraphvizDefaults;
         var attr = Object.assign({}, context.nodeDefaults);
         GraphVisualizer.ParseAttributes(node.attr_list, attr);
         var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + node.node_id.id);
@@ -148,7 +120,7 @@ export class GraphVisualizer
         var style = attr.style || defaults.style;
         switch(style) {
             case "filled": 
-                var fillColor = attr.fillcolor || attr.color  || GraphVisualizer.GraphvizDefaults.fillcolor;
+                var fillColor = attr.fillcolor || attr.color  || Context.GraphvizDefaults.fillcolor;
                 shape.fill(fillColor);
                 break;
             case "solid":
@@ -181,7 +153,7 @@ export class GraphVisualizer
         GraphVisualizer.ParseAttributes(edge.attr_list, attr);
         var positions = GraphVisualizer.ParsePositionArray(attr.pos);
         var data = GraphVisualizer.ConstructSplines(positions);
-        var defaults = GraphVisualizer.GraphvizDefaults;
+        var defaults = Context.GraphvizDefaults;
         var group = context.container.group().id(attr.id ? attr.id : GraphVisualizer.GraphPrefix() + edge.edge_list.map((c, i, a) => { return c.id}).join('-'));
         var path = group.path(data.path);
         if(attr.class) {
@@ -247,7 +219,7 @@ export class GraphVisualizer
 
     static ParseRecord(container, attributes)
     {
-        var defaults = GraphVisualizer.GraphvizDefaults;
+        var defaults = Context.GraphvizDefaults;
         var group = container.group();
         var labels = GraphVisualizer.ParseRecordLabel(group, attributes.label);
         var i = 0;
@@ -274,7 +246,7 @@ export class GraphVisualizer
 
     static ParseShape (container, attributes, id)
     {
-        var defaults = GraphVisualizer.GraphvizDefaults;
+        var defaults = Context.GraphvizDefaults;
         var width = attributes.width * defaults.dpi;
         var height = attributes.height * defaults.dpi;
         var pos = GraphVisualizer.ParseNodePosition(attributes.pos);
@@ -362,7 +334,7 @@ export class GraphVisualizer
 
     static DecorateGraph(element, context)
     {
-        var defaults = GraphVisualizer.GraphvizDefaults;
+        var defaults = Context.GraphvizDefaults;
         var attr = context.graphDefaults;
         var bb = GraphVisualizer.ParseRectangle(context.graphDefaults.bb);
         if (element.id && element.id.startsWith("cluster")) {
