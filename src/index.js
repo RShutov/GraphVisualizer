@@ -4,6 +4,7 @@ var Victor = require('victor');
 var Context = require('./Context.js')
 var Attributes = require('./Attributes.js')
 var AttributeParser = require('./AttributeParser.js')
+var Shapes = require('./Shapes.js')
 
 export class GraphVisualizer
 {
@@ -177,70 +178,50 @@ export class GraphVisualizer
     static ParseShape (container, attributes, id)
     {
         var defaults = Attributes.Default;
+        var shapeAtr = attributes.shape || defaults.shape;
+        if (shapeAtr === "record") {
+            return GraphVisualizer.ParseRecord(container, attributes);
+        } else {
+            var pos = AttributeParser.ParseNodePosition(attributes.pos);
+            var shape = GraphVisualizer.BuildShape(shapeAtr, container, attributes);
+            var text = container.text(attributes.label != defaults.label ? attributes.label : id);
+            var fontSize = attributes.fontsize || defaults.fontsize;
+            text.font({
+                anchor: 'middle',
+                size: fontSize,
+                family: attributes.fontname || defaults.fontname,
+                fill: attributes.fontcolor || defaults.fontcolor });
+                text.attr({ x: pos.X, y: pos.Y - fontSize});
+                return shape;
+        }
+    }
+
+    static BuildShape(shape, container, attributes)
+    {
+        var defaults = Attributes.Default;
         var width = attributes.width * defaults.dpi;
         var height = attributes.height * defaults.dpi;
         var pos = AttributeParser.ParseNodePosition(attributes.pos);
         var color = attributes.color || defaults.color;
-        var shape = {};
-        switch(attributes.shape || defaults.shape) {
-            case "record":
-                return GraphVisualizer.ParseRecord(container, attributes); 
+        switch(shape) {
             case "oval":
             case "ellipse":
-                shape = container.ellipse().move(pos.X, pos.Y).radius(width / 2, height / 2);
-                break;
+                return Shapes.Ellipse(container, pos, width / 2, height / 2);
             case "circle":
-                shape = container.circle().move(pos.X, pos.Y).radius(height / 2);
-                break;
+                return Shapes.Circle(container, pos, height / 2);
             case "box":
             case "rect":
             case "rectangle":
-                shape = container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
-                break;
+                return Shapes.Rectangle(container, pos, width, height);
             case "diamond":
-                shape = container
-                    .polygon(`${-width / 2},${0} ${0},${ height / 2} ${width / 2},${0} ${0},${ -height / 2}`)
-                    .move(pos.X, pos.Y);
-                break;
+                return Shapes.Diamond(container, pos, width, height);
             case "Mdiamond":
-                var offset = 5;
-                var a = new Victor(pos.X - width / 2, pos.Y);
-                var b = new Victor(pos.X, pos.Y + height / 2);
-                var c = new Victor(pos.X + width / 2, pos.Y);
-                var d = new Victor(pos.X, pos.Y - height / 2);
-                shape = container
-                    .polygon(`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`);
-                var offsetv = offset * width / height;
-                var deltah = width  / 2 * (offset * 2 / height);
-                var deltav = height / 2 * (offsetv * 2 / width);
-                container.line(a.x + deltah, a.y + offset, a.x + deltah, a.y - offset).stroke({ width: 1, color: color });
-                container.line(b.x - offsetv, b.y - deltav, b.x  + offsetv, b.y - deltav).stroke({ width: 1, color: color });
-                container.line(c.x - deltah, c.y + offset, c.x - deltah, c.y - offset).stroke({ width: 1, color: color });
-                container.line(d.x - offsetv, d.y + deltav, d.x  + offsetv, d.y + deltav).stroke({ width: 1, color: color });
-                break;
+                return Shapes.MDiamond(container, pos, width, height, color)
             case "Msquare":
-                var offset = 15;
-                var a = new Victor(pos.X - width / 2, pos.Y - height / 2);
-                var b = new Victor(pos.X + width / 2, pos.Y - height / 2);
-                var c = new Victor(pos.X + width / 2, pos.Y + height / 2);
-                var d = new Victor(pos.X - width / 2, pos.Y + height / 2);
-                shape =  container.rect(width, height).move(pos.X - width / 2, pos.Y - height / 2);
-                var delta = offset / 2;
-                container.line(a.x + delta, a.y, a.x, a.y + delta).stroke({ width: 1, color: color });
-                container.line(b.x - delta, b.y, b.x, b.y + delta).stroke({ width: 1, color: color });
-                container.line(c.x, c.y - delta, c.x - delta, c.y).stroke({ width: 1, color: color });
-                container.line(d.x, d.y - delta, d.x + delta, d.y).stroke({ width: 1, color: color });
-                break;
+                return Shapes.Msquare(container, pos, width, height, color);
+            default:
+                throw `Unknow shape ${ shape }`;
         }
-        var text = container.text(attributes.label != defaults.label ? attributes.label : id);
-        var fontSize = attributes.fontsize || defaults.fontsize;
-        text.font({
-            anchor: 'middle',
-            size: fontSize,
-            family: attributes.fontname || defaults.fontname,
-            fill: attributes.fontcolor || defaults.fontcolor });
-        text.attr({ x: pos.X, y: pos.Y - fontSize});
-        return shape;
     }
 
     static FixSubgraphs(element)
