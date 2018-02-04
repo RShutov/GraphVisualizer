@@ -22,7 +22,7 @@ export class GraphVisualizer
     }
 
     static RemoveLineEndWrapping(text) {
-        return text.replace(new RegExp('\\\n', 'g'), '');
+        return text.replace(new RegExp(/\\\r\n/, 'g'), '');
     }
 
     static ParseGraph(text)
